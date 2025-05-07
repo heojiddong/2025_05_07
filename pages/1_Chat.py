@@ -43,8 +43,7 @@ if st.session_state.api_key:
         st.session_state.messages = []
 
     # 사용자 메시지 입력 받기
-    user_input = st.text_input("Your question:")
-    submit_button = st.button("Send")
+    user_input = st.chat_input("Your question:")
 
     # Clear 버튼
     clear_button = st.button("Clear")
@@ -52,9 +51,9 @@ if st.session_state.api_key:
     if clear_button:
         st.session_state.messages = []  # 대화 내용 초기화
 
-    # 사용자 메시지 전송
-    if submit_button and user_input:
-        st.session_state.messages.append(f"User: {user_input}")
+    # 사용자가 메시지를 보내면
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
         openai.beta.threads.messages.create(
             thread_id=st.session_state.thread_id,
@@ -88,15 +87,15 @@ if st.session_state.api_key:
         for msg in reversed(messages.data):
             if msg.role == "assistant":
                 assistant_response = msg.content[0].text.value
-                st.session_state.messages.append(f"GPT: {assistant_response}")
+                st.session_state.messages.append({"role": "assistant", "content": assistant_response})
                 break
 
     # 대화 내용 표시 (채팅 형식)
-    if st.session_state.messages:
-        for msg in st.session_state.messages:
-            if msg.startswith("User:"):
-                st.markdown(f"**User:** {msg[6:]}")
-            else:
-                st.markdown(f"**GPT:** {msg[5:]}")
+    for message in st.session_state.messages:
+        if message["role"] == "user":
+            st.chat_message("user").markdown(message["content"])
+        else:
+            st.chat_message("assistant").markdown(message["content"])
+
 else:
     st.info("Please enter your OpenAI API key to start chatting.")
