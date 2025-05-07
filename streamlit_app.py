@@ -45,10 +45,6 @@ if st.session_state.api_key:
     if "do_rerun" not in st.session_state:
         st.session_state.do_rerun = False
 
-    if st.session_state.do_rerun:
-        st.session_state.do_rerun = False
-        st.experimental_rerun()
-
     if st.button("Send") and user_input:
         st.session_state.last_sent = user_input  # 저장
 
@@ -85,8 +81,7 @@ if st.session_state.api_key:
                 st.write(f"**GPT:** {msg.content[0].text.value}")
                 break
 
-        # 입력창 비우기 위해 리런
-        st.session_state.do_rerun = True
-
+        # 입력창 비우기
+        st.session_state.user_input = ""  # 사용자 입력칸 비우기
 else:
     st.info("API Key를 입력하면 질문을 보낼 수 있어요.")
