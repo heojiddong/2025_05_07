@@ -83,9 +83,11 @@ if st.session_state.api_key:
 
         # 응답 가져오기
         messages = openai.beta.threads.messages.list(thread_id=st.session_state.thread_id)
+        
         assistant_response = ""
         for msg in reversed(messages.data):
             if msg.role == "assistant":
+                # 챗봇의 응답 추출
                 assistant_response = msg.content[0].text.value
                 st.session_state.messages.append({"role": "assistant", "content": assistant_response})
                 break
