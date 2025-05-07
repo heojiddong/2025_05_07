@@ -41,6 +41,14 @@ if st.session_state.api_key:
     # 사용자 입력
     user_input = st.text_input("Your question:", value="", key="user_input")
 
+    # rerun 플래그 확인
+    if "do_rerun" not in st.session_state:
+        st.session_state.do_rerun = False
+
+    if st.session_state.do_rerun:
+        st.session_state.do_rerun = False
+        st.experimental_rerun()
+
     if st.button("Send") and user_input:
         st.session_state.last_sent = user_input  # 저장
 
@@ -78,7 +86,7 @@ if st.session_state.api_key:
                 break
 
         # 입력창 비우기 위해 리런
-        st.experimental_rerun()
+        st.session_state.do_rerun = True
 
 else:
     st.info("API Key를 입력하면 질문을 보낼 수 있어요.")
