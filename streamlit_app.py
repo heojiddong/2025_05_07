@@ -39,10 +39,10 @@ if st.session_state.api_key:
         st.session_state.last_sent = ""
 
     # 사용자 입력
-    user_input = st.text_input("Your question:", value="", key="user_input_{}".format(time.time()))  # key에 시간을 추가
+    user_input = st.text_input("Your question:", value=st.session_state.last_sent, key="user_input_{}".format(time.time()))  # key에 시간을 추가
 
     if st.button("Send") and user_input:
-        st.session_state.last_sent = user_input  # 저장
+        st.session_state.last_sent = user_input  # 사용자 입력 저장
 
         # 메시지 생성
         openai.beta.threads.messages.create(
@@ -78,6 +78,6 @@ if st.session_state.api_key:
                 break
 
         # 입력창 비우기
-        st.text_input("Your question:", value="", key="user_input_{}".format(time.time()))  # 사용자 입력칸 비우기
+        st.session_state.last_sent = ""  # 질문 입력칸을 비워줍니다.
 else:
     st.info("API Key를 입력하면 질문을 보낼 수 있어요.")
