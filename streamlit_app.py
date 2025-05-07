@@ -49,20 +49,27 @@ if st.session_state.api_key:
     if user_input:
         # 사용자 메시지 전송
         st.session_state.messages.append({"role": "user", "content": user_input})
-        openai.beta.threads.messages.create(
-            thread_id=st.session_state.thread_id,
-            role="user",
-            content=user_input
+
+        # 전체 대화 내용을 전달하여 더 자연스러운 대화 유도
+        conversation = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages]
+
+        # 모델에 메시지 전송
+        response = openai.chat_completions.create(
+            model="gpt-4-1106-preview",
+            messages=conversation
         )
 
-        # 실행 시작
-        run = openai.beta.threads.runs.create(
-            thread_id=st.session_state.thread_id,
-            assistant_id=st.session_state.assistant_id,
-        )
+        assistant_response = response['choices'][0]['message']['content']
 
-        # 응답 기다리기
-        with st.spinner("Waiting for response..."):
-            while True:
-                run_status = openai.beta.threads.runs.retrieve(
-                    thread_id=st.session_state.thread_id,
+        # 챗봇의 응답을 대화 내용에 추가
+        st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+
+    # 대화 내용 표시
+    for message in st.session_state.messages:
+        if message["role"] == "user":
+            st.write(f"**You**: {message['content']}")
+        else:
+            st.write(f"**Assistant**: {message['content']}")
+
+else:
+    st.info("Please enter your OpenAI API key to start chatting.")
