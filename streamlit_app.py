@@ -19,7 +19,7 @@ if st.session_state.api_key:
     # 어시스턴트 생성 함수 (캐시)
     @st.cache_data
     def create_assistant():
-        assistant = openai.assistants.create(
+        assistant = openai.Assistants.create(
             name="Mini Chat Assistant",
             instructions="You are a helpful assistant.",
             model="gpt-4-1106-preview"
@@ -29,7 +29,7 @@ if st.session_state.api_key:
     # 쓰레드 생성 함수 (캐시)
     @st.cache_data
     def create_thread():
-        thread = openai.threads.create()
+        thread = openai.Threads.create()
         return thread.id
 
     # 상태 초기화
@@ -54,9 +54,9 @@ if st.session_state.api_key:
         conversation = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages]
 
         # 모델에 메시지 전송
-        response = openai.ChatCompletion.create(
+        response = openai.Completions.create(
             model="gpt-4-1106-preview",
-            messages=conversation
+            prompt=conversation
         )
 
         assistant_response = response['choices'][0]['message']['content']
