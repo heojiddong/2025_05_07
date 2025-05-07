@@ -15,7 +15,6 @@ st.session_state.api_key = api_key
 if st.session_state.api_key:
     openai.api_key = st.session_state.api_key
 
-    # 어시스턴트 생성 함수 (캐시 처리)
     @st.cache_data
     def create_assistant():
         assistant = openai.beta.assistants.create(
@@ -25,40 +24,33 @@ if st.session_state.api_key:
         )
         return assistant.id
 
-    # 쓰레드 생성 함수 (캐시 처리)
     @st.cache_data
     def create_thread():
         thread = openai.beta.threads.create()
         return thread.id
 
-    # 상태 초기화
     if "assistant_id" not in st.session_state:
         st.session_state.assistant_id = create_assistant()
     if "thread_id" not in st.session_state:
         st.session_state.thread_id = create_thread()
 
-    # 사용자 입력 받기 (key 지정)
-    user_input = st.text_input("Your question:", key="user_input")
+    # 사용자 입력 받기
+    user_input = st.text_input("Your question:", key="user_input_input")
     submit_button = st.button("Send")
 
     if submit_button and user_input:
-        # 사용자 메시지 전송
         openai.beta.threads.messages.create(
             thread_id=st.session_state.thread_id,
             role="user",
             content=user_input
         )
 
-        # 입력창 초기화
-        st.session_state["user_input"] = ""
-
-        # 실행 시작
+        # Run assistant
         run = openai.beta.threads.runs.create(
             thread_id=st.session_state.thread_id,
             assistant_id=st.session_state.assistant_id,
         )
 
-        # 응답 대기
         with st.spinner("Waiting for response..."):
             while True:
                 run_status = openai.beta.threads.runs.retrieve(
@@ -78,6 +70,10 @@ if st.session_state.api_key:
             if msg.role == "assistant":
                 st.write(f"**GPT:** {msg.content[0].text.value}")
                 break
+
+        # 입력창 비우기: rerun 사용
+        st.session_state.user_input_input = ""
+        st.experimental_rerun()
 
 else:
     st.info("API Key를 입력하면 질문을 보낼 수 있어요.")
