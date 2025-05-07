@@ -33,16 +33,16 @@ if st.session_state.api_key:
 
         # 모델에 메시지 전송 (최신 API 사용)
         try:
-            response = openai.ChatCompletion.create(
+            response = openai.Completion.create(
                 model="gpt-4",  # 올바른 모델 이름
-                messages=conversation,  # 메시지 목록으로 대화 전달
+                prompt=conversation,  # 메시지 목록으로 대화 전달
                 max_tokens=150,  # 토큰 수 제한
                 n=1,  # 한 번에 하나의 응답을 받기
                 stop=None,  # 종료 조건 (옵션)
                 temperature=0.7  # 창의성 정도 (옵션)
             )
 
-            assistant_response = response['choices'][0]['message']['content']  # 응답에서 내용 추출
+            assistant_response = response['choices'][0]['text']  # 응답에서 내용 추출
 
             # 챗봇의 응답을 대화 내용에 추가
             st.session_state.messages.append({"role": "assistant", "content": assistant_response})
