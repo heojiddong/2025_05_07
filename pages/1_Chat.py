@@ -98,6 +98,5 @@ if st.session_state.api_key:
                 st.markdown(f"**User:** {msg[6:]}")
             else:
                 st.markdown(f"**GPT:** {msg[5:]}")
-
 else:
     st.info("Please enter your OpenAI API key to start chatting.")
