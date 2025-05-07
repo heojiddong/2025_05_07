@@ -53,8 +53,8 @@ if st.session_state.api_key:
         # 전체 대화 내용을 전달하여 더 자연스러운 대화 유도
         conversation = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages]
 
-        # 모델에 메시지 전송
-        response = openai.Completion.create(
+        # 모델에 메시지 전송 (최신 API 사용)
+        response = openai.ChatCompletion.create(
             model="gpt-4",  # 올바른 모델 이름
             messages=conversation,  # 메시지 목록으로 대화 전달
             max_tokens=150,  # 토큰 수 제한
@@ -63,7 +63,7 @@ if st.session_state.api_key:
             temperature=0.7  # 창의성 정도 (옵션)
         )
 
-        assistant_response = response.choices[0].message['content']  # 응답에서 내용 추출
+        assistant_response = response['choices'][0]['message']['content']  # 응답에서 내용 추출
 
         # 챗봇의 응답을 대화 내용에 추가
         st.session_state.messages.append({"role": "assistant", "content": assistant_response})
