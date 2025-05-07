@@ -16,28 +16,6 @@ st.session_state.api_key = api_key
 if st.session_state.api_key:
     openai.api_key = st.session_state.api_key
 
-    # 어시스턴트 생성 함수 (캐시)
-    @st.cache_data
-    def create_assistant():
-        assistant = openai.Assistants.create(
-            name="Mini Chat Assistant",
-            instructions="You are a helpful assistant.",
-            model="gpt-4-1106-preview"
-        )
-        return assistant.id
-
-    # 쓰레드 생성 함수 (캐시)
-    @st.cache_data
-    def create_thread():
-        thread = openai.Threads.create()
-        return thread.id
-
-    # 상태 초기화
-    if "assistant_id" not in st.session_state:
-        st.session_state.assistant_id = create_assistant()
-    if "thread_id" not in st.session_state:
-        st.session_state.thread_id = create_thread()
-
     # 대화 내용 저장
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -54,19 +32,23 @@ if st.session_state.api_key:
         conversation = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages]
 
         # 모델에 메시지 전송 (최신 API 사용)
-        response = openai.ChatCompletion.create(
-            model="gpt-4",  # 올바른 모델 이름
-            messages=conversation,  # 메시지 목록으로 대화 전달
-            max_tokens=150,  # 토큰 수 제한
-            n=1,  # 한 번에 하나의 응답을 받기
-            stop=None,  # 종료 조건 (옵션)
-            temperature=0.7  # 창의성 정도 (옵션)
-        )
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4",  # 올바른 모델 이름
+                messages=conversation,  # 메시지 목록으로 대화 전달
+                max_tokens=150,  # 토큰 수 제한
+                n=1,  # 한 번에 하나의 응답을 받기
+                stop=None,  # 종료 조건 (옵션)
+                temperature=0.7  # 창의성 정도 (옵션)
+            )
 
-        assistant_response = response['choices'][0]['message']['content']  # 응답에서 내용 추출
+            assistant_response = response['choices'][0]['message']['content']  # 응답에서 내용 추출
 
-        # 챗봇의 응답을 대화 내용에 추가
-        st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+            # 챗봇의 응답을 대화 내용에 추가
+            st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+
+        except Exception as e:
+            st.error(f"Error: {e}")
 
     # 대화 내용 표시
     for message in st.session_state.messages:
