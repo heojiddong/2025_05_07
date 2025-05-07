@@ -2,7 +2,7 @@ import streamlit as st
 import openai
 import time
 
-# 제목
+# 첫 번째 페이지 제목
 st.title("🤖 GPT-4.1-mini Chat - 과제 1")
 
 # 🔑 API Key 입력 및 세션에 저장
@@ -38,12 +38,17 @@ if st.session_state.api_key:
     if "thread_id" not in st.session_state:
         st.session_state.thread_id = create_thread()
 
-    # 사용자 입력 받기
-    user_input = st.text_input("Your question:")
-    submit_button = st.button("Send")
+    # 대화 내용 저장
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-    if submit_button and user_input:
+    # 사용자 메시지 입력 받기
+    user_input = st.text_input("Your question:")
+
+    # 사용자가 메시지를 보내면
+    if user_input:
         # 사용자 메시지 전송
+        st.session_state.messages.append({"role": "user", "content": user_input})
         openai.beta.threads.messages.create(
             thread_id=st.session_state.thread_id,
             role="user",
@@ -61,20 +66,3 @@ if st.session_state.api_key:
             while True:
                 run_status = openai.beta.threads.runs.retrieve(
                     thread_id=st.session_state.thread_id,
-                    run_id=run.id
-                )
-                if run_status.status == "completed":
-                    break
-                elif run_status.status == "failed":
-                    st.error("Run failed.")
-                    break
-                time.sleep(1)
-
-        # 응답 가져오기
-        messages = openai.beta.threads.messages.list(thread_id=st.session_state.thread_id)
-        for msg in reversed(messages.data):
-            if msg.role == "assistant":
-                st.write(f"**GPT:** {msg.content[0].text.value}")
-                break
-else:
-    st.info("Please enter your OpenAI API key to start chatting.")
