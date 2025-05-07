@@ -18,7 +18,7 @@ if st.session_state.api_key:
     def create_assistant():
         assistant = openai.beta.assistants.create(
             name="Mini Chat Assistant",
-            instructions="You are a helpful assistant.",
+            instructions="You are an assistant who provides precise, accurate, and relevant answers to user questions. When asked for specific facts (such as the length of an elephant's trunk), you should provide clear, factual, and concise responses. Avoid giving generic or unrelated information unless the user explicitly asks for a fun fact or additional context.",
             model="gpt-4.1-mini"
         )
         return assistant.id
