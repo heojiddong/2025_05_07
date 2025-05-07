@@ -39,7 +39,7 @@ if st.session_state.api_key:
         st.session_state.last_sent = ""
 
     # 사용자 입력
-    user_input = st.text_input("Your question:", value=st.session_state.last_sent, key="user_input_{}".format(time.time()))  # key에 시간을 추가
+    user_input = st.text_input("Your question:", value=st.session_state.last_sent, key="user_input_{}".format(time.time()))  # key에 시간을 추가하여 매번 새로 고침
 
     if st.button("Send") and user_input:
         st.session_state.last_sent = user_input  # 사용자 입력 저장
@@ -79,5 +79,8 @@ if st.session_state.api_key:
 
         # 입력창 비우기
         st.session_state.last_sent = ""  # 질문 입력칸을 비워줍니다.
+
+        # 입력칸을 빈 값으로 리셋하기 위해서 새로고침을 강제
+        st.experimental_rerun()  # 새로운 요청에 대해 페이지를 다시 로드하여 입력칸을 비웁니다.
 else:
     st.info("API Key를 입력하면 질문을 보낼 수 있어요.")
