@@ -18,7 +18,7 @@ if st.session_state.api_key:
     def create_assistant():
         assistant = openai.beta.assistants.create(
             name="Mini Chat Assistant",
-            instructions="You are an assistant who provides precise, accurate, and relevant answers to user questions. When asked for specific facts (such as the length of an elephant's trunk), you should provide clear, factual, and concise responses. Avoid giving generic or unrelated information unless the user explicitly asks for a fun fact or additional context.",
+            instructions="You are an assistant who provides precise, accurate, and relevant answers to user questions.",
             model="gpt-4.1-mini"
         )
         return assistant.id
@@ -37,24 +37,22 @@ if st.session_state.api_key:
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    if "user_input" not in st.session_state:
-        st.session_state.user_input = ""
+    # --- 입력 Form ---
+    with st.form("chat_form", clear_on_submit=True):
+        user_input = st.text_input("Your question:")
+        submitted = st.form_submit_button("Send")
 
-    # 사용자 입력창
-    st.text_input("Your question:", key="user_input")
-
-    if st.button("Send") and st.session_state.user_input.strip():
-        user_input = st.session_state.user_input.strip()
-        st.session_state.messages.append({"role": "user", "content": user_input})
+    if submitted and user_input.strip():
+        st.session_state.messages.append({"role": "user", "content": user_input.strip()})
 
         # 메시지 보내기
         openai.beta.threads.messages.create(
             thread_id=st.session_state.thread_id,
             role="user",
-            content=user_input
+            content=user_input.strip()
         )
 
-        # Assistant 실행
+        # 응답 실행
         run = openai.beta.threads.runs.create(
             thread_id=st.session_state.thread_id,
             assistant_id=st.session_state.assistant_id,
@@ -80,10 +78,7 @@ if st.session_state.api_key:
                 st.session_state.messages.append({"role": "assistant", "content": msg.content[0].text.value})
                 break
 
-        # 입력창 초기화
-        st.session_state.user_input = ""
-
-    # 메시지 출력
+    # 대화 출력
     for msg in st.session_state.messages:
         speaker = "🧑‍💻 You" if msg["role"] == "user" else "🤖 GPT"
         st.markdown(f"**{speaker}:** {msg['content']}")
