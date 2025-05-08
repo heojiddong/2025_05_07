@@ -4,7 +4,7 @@ import time
 
 st.title("🤖 GPT-4.1-mini Chat - 과제 1")
 
-# 🔑 API Key 입력
+# API 키 입력
 if "api_key" not in st.session_state:
     st.session_state.api_key = ""
 
@@ -34,17 +34,20 @@ if st.session_state.api_key:
     if "thread_id" not in st.session_state:
         st.session_state.thread_id = create_thread()
 
-    # 사용자 질문 입력
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    user_input = st.text_input("Your question:", key="user_input")
+    if "user_input" not in st.session_state:
+        st.session_state.user_input = ""
 
-    if st.button("Send") and user_input:
-        # 사용자 메시지 저장
+    # 사용자 입력창
+    st.text_input("Your question:", key="user_input")
+
+    if st.button("Send") and st.session_state.user_input.strip():
+        user_input = st.session_state.user_input.strip()
         st.session_state.messages.append({"role": "user", "content": user_input})
 
-        # OpenAI에 메시지 전달
+        # 메시지 보내기
         openai.beta.threads.messages.create(
             thread_id=st.session_state.thread_id,
             role="user",
@@ -77,10 +80,10 @@ if st.session_state.api_key:
                 st.session_state.messages.append({"role": "assistant", "content": msg.content[0].text.value})
                 break
 
-        # 입력 필드 초기화
-        st.experimental_rerun()
+        # 입력창 초기화
+        st.session_state.user_input = ""
 
-    # 대화 내용 출력
+    # 메시지 출력
     for msg in st.session_state.messages:
         speaker = "🧑‍💻 You" if msg["role"] == "user" else "🤖 GPT"
         st.markdown(f"**{speaker}:** {msg['content']}")
