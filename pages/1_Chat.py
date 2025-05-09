@@ -71,4 +71,21 @@ if "api_key" in st.session_state and st.session_state.api_key:
 
         # 응답 받기
         messages = openai.beta.threads.messages.list(thread_id=thread.id)
-        for msg in reversed(messages.data
+        for msg in reversed(messages.data):
+            if msg.role == "assistant":
+                reply = msg.content[0].text.value
+                st.session_state.chat2_messages.append({"role": "assistant", "content": reply})
+                st.chat_message("assistant").markdown(reply)
+                break
+
+        # 이제부터 대화 출력 허용
+        st.session_state.chat2_visible = True
+
+    # 🔽 이전 대화 출력 (단, visible일 때만)
+    if st.session_state.chat2_visible:
+        for msg in st.session_state.chat2_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+else:
+    st.error("❌ API 키가 설정되지 않았습니다. 홈 페이지에서 먼저 입력해 주세요.")
