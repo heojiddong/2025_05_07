@@ -2,30 +2,22 @@ import streamlit as st
 import openai
 import time
 
-st.title("🤖 GPT-4.1-mini Chat")
+st.title("💬 GPT-4.1-mini Chat - 과제 2")
 
-# API Key 입력
-if "api_key" not in st.session_state:
-    st.session_state.api_key = ""
-
-api_key = st.text_input("Enter your OpenAI API Key", type="password", value=st.session_state.api_key)
-st.session_state.api_key = api_key
-
-# 대화 저장소
+# 대화 메시지 상태
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if st.session_state.api_key:
+# ✅ API 키가 존재할 경우에만 실행
+if "api_key" in st.session_state and st.session_state.api_key:
     openai.api_key = st.session_state.api_key
 
+    # 어시스턴트 생성 (고정)
     @st.cache_data
     def create_assistant():
         assistant = openai.beta.assistants.create(
             name="Mini Chat Assistant",
-            instructions=(
-                "You are a helpful and precise assistant. "
-                "Give accurate, clear answers and avoid repeating general greetings."
-            ),
+            instructions="You are a helpful and accurate assistant. Give clear, precise answers.",
             model="gpt-4.1-mini"
         )
         return assistant.id
@@ -33,17 +25,17 @@ if st.session_state.api_key:
     if "assistant_id" not in st.session_state:
         st.session_state.assistant_id = create_assistant()
 
-    # Clear 버튼
-    if st.button("Clear"):
+    # 🔘 Clear 버튼
+    if st.button("🧹 Clear Chat"):
         st.session_state.messages = []
 
-    # 사용자 입력
-    user_input = st.chat_input("Your question:")
+    # 💬 사용자 입력
+    user_input = st.chat_input("Type your message...")
 
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
 
-        # ❗ 질문마다 새 Thread 생성
+        # 질문마다 새로운 Thread 생성
         thread = openai.beta.threads.create()
         thread_id = thread.id
 
@@ -58,7 +50,7 @@ if st.session_state.api_key:
             assistant_id=st.session_state.assistant_id,
         )
 
-        with st.spinner("Waiting for response..."):
+        with st.spinner("GPT is typing..."):
             while True:
                 run_status = openai.beta.threads.runs.retrieve(
                     thread_id=thread_id,
@@ -71,17 +63,18 @@ if st.session_state.api_key:
                     break
                 time.sleep(1)
 
-        # 응답 받아오기
+        # 응답 메시지 받기
         messages = openai.beta.threads.messages.list(thread_id=thread_id)
         for msg in reversed(messages.data):
             if msg.role == "assistant":
-                assistant_response = msg.content[0].text.value
-                st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+                reply = msg.content[0].text.value
+                st.session_state.messages.append({"role": "assistant", "content": reply})
                 break
 
-    # 💬 채팅 메시지 출력
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # 💬 대화 출력
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
 else:
-    st.info("Please enter your OpenAI API key to start chatting.")
+    st.error("API 키가 설정되지 않았습니다. 홈 페이지에서 먼저 입력해 주세요.")
