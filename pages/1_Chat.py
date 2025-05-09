@@ -4,20 +4,23 @@ import time
 
 st.title("💬 GPT-4.1-mini Chat - 과제 2")
 
-# 대화 메시지 상태
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# 🔒 메시지 및 화면 표시 여부 초기화
+if "chat2_messages" not in st.session_state:
+    st.session_state.chat2_messages = []
 
-# ✅ API 키가 존재할 경우에만 실행
+if "chat2_visible" not in st.session_state:
+    st.session_state.chat2_visible = False  # 기본은 대화 숨김
+
+# ✅ API 키가 세션에 있어야 사용 가능
 if "api_key" in st.session_state and st.session_state.api_key:
     openai.api_key = st.session_state.api_key
 
-    # 어시스턴트 생성 (고정)
+    # Assistant 생성
     @st.cache_data
     def create_assistant():
         assistant = openai.beta.assistants.create(
             name="Mini Chat Assistant",
-            instructions="You are a helpful and accurate assistant. Give clear, precise answers.",
+            instructions="You are a helpful and accurate assistant. Give direct, fact-based, and concise answers.",
             model="gpt-4.1-mini"
         )
         return assistant.id
@@ -27,33 +30,36 @@ if "api_key" in st.session_state and st.session_state.api_key:
 
     # 🔘 Clear 버튼
     if st.button("🧹 Clear Chat"):
-        st.session_state.messages = []
+        st.session_state.chat2_messages = []
+        st.session_state.chat2_visible = False
 
     # 💬 사용자 입력
     user_input = st.chat_input("Type your message...")
 
     if user_input:
-        st.session_state.messages.append({"role": "user", "content": user_input})
+        # 메시지 저장
+        st.session_state.chat2_messages.append({"role": "user", "content": user_input})
+        st.chat_message("user").markdown(user_input)
 
-        # 질문마다 새로운 Thread 생성
+        # 매번 새 Thread 생성
         thread = openai.beta.threads.create()
-        thread_id = thread.id
-
         openai.beta.threads.messages.create(
-            thread_id=thread_id,
+            thread_id=thread.id,
             role="user",
             content=user_input
         )
 
+        # 실행
         run = openai.beta.threads.runs.create(
-            thread_id=thread_id,
+            thread_id=thread.id,
             assistant_id=st.session_state.assistant_id,
         )
 
-        with st.spinner("GPT is typing..."):
+        # 응답 대기
+        with st.spinner("GPT is thinking..."):
             while True:
                 run_status = openai.beta.threads.runs.retrieve(
-                    thread_id=thread_id,
+                    thread_id=thread.id,
                     run_id=run.id
                 )
                 if run_status.status == "completed":
@@ -63,18 +69,6 @@ if "api_key" in st.session_state and st.session_state.api_key:
                     break
                 time.sleep(1)
 
-        # 응답 메시지 받기
-        messages = openai.beta.threads.messages.list(thread_id=thread_id)
-        for msg in reversed(messages.data):
-            if msg.role == "assistant":
-                reply = msg.content[0].text.value
-                st.session_state.messages.append({"role": "assistant", "content": reply})
-                break
-
-    # 💬 대화 출력
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-else:
-    st.error("API 키가 설정되지 않았습니다. 홈 페이지에서 먼저 입력해 주세요.")
+        # 응답 받기
+        messages = openai.beta.threads.messages.list(thread_id=thread.id)
+        for msg in reversed(messages.data
