@@ -4,18 +4,18 @@ import time
 
 st.title("💬 GPT-4.1-mini Chat - 과제 2")
 
-# 🔒 메시지 및 화면 표시 여부 초기화
+# 세션 상태 초기화
 if "chat2_messages" not in st.session_state:
     st.session_state.chat2_messages = []
 
 if "chat2_visible" not in st.session_state:
-    st.session_state.chat2_visible = False  # 기본은 대화 숨김
+    st.session_state.chat2_visible = False  # 페이지 재진입 시 대화 숨김
 
-# ✅ API 키가 세션에 있어야 사용 가능
+# API 키가 세션에 있는 경우만 실행
 if "api_key" in st.session_state and st.session_state.api_key:
     openai.api_key = st.session_state.api_key
 
-    # Assistant 생성
+    # 어시스턴트 생성 (지속)
     @st.cache_data
     def create_assistant():
         assistant = openai.beta.assistants.create(
@@ -28,20 +28,19 @@ if "api_key" in st.session_state and st.session_state.api_key:
     if "assistant_id" not in st.session_state:
         st.session_state.assistant_id = create_assistant()
 
-    # 🔘 Clear 버튼
+    # Clear 버튼
     if st.button("🧹 Clear Chat"):
         st.session_state.chat2_messages = []
         st.session_state.chat2_visible = False
 
-    # 💬 사용자 입력
+    # 사용자 입력 받기
     user_input = st.chat_input("Type your message...")
 
     if user_input:
-        # 메시지 저장
+        # 메시지를 상태에만 저장 (즉시 출력 X → 아래 loop에서 출력)
         st.session_state.chat2_messages.append({"role": "user", "content": user_input})
-        st.chat_message("user").markdown(user_input)
 
-        # 매번 새 Thread 생성
+        # 새로운 thread 생성
         thread = openai.beta.threads.create()
         openai.beta.threads.messages.create(
             thread_id=thread.id,
@@ -49,7 +48,7 @@ if "api_key" in st.session_state and st.session_state.api_key:
             content=user_input
         )
 
-        # 실행
+        # assistant 실행
         run = openai.beta.threads.runs.create(
             thread_id=thread.id,
             assistant_id=st.session_state.assistant_id,
@@ -69,19 +68,18 @@ if "api_key" in st.session_state and st.session_state.api_key:
                     break
                 time.sleep(1)
 
-        # 응답 받기
+        # GPT 응답 가져오기
         messages = openai.beta.threads.messages.list(thread_id=thread.id)
         for msg in reversed(messages.data):
             if msg.role == "assistant":
                 reply = msg.content[0].text.value
                 st.session_state.chat2_messages.append({"role": "assistant", "content": reply})
-                st.chat_message("assistant").markdown(reply)
                 break
 
-        # 이제부터 대화 출력 허용
+        # 대화 표시 활성화
         st.session_state.chat2_visible = True
 
-    # 🔽 이전 대화 출력 (단, visible일 때만)
+    # 채팅 메시지 출력 (보이기 설정 시에만)
     if st.session_state.chat2_visible:
         for msg in st.session_state.chat2_messages:
             with st.chat_message(msg["role"]):
