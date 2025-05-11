@@ -29,16 +29,19 @@ if "api_key" in st.session_state and st.session_state.api_key:
         try:
             if st.session_state.pdf_file_id:
                 openai.files.delete(st.session_state.pdf_file_id)
+                st.session_state.pdf_file_id = None
+        except Exception as e:
+            st.warning(f"파일 삭제 실패: {str(e)}")
+        try:
             if st.session_state.pdf_vector_store_id:
                 openai.beta.vector_stores.delete(st.session_state.pdf_vector_store_id)
-            st.success("PDF 및 벡터 스토어 삭제 완료")
+                st.session_state.pdf_vector_store_id = None
         except Exception as e:
-            st.warning(f"삭제 실패: {str(e)}")
+            st.warning(f"벡터 스토어 삭제 실패: {str(e)}")
         st.session_state.pdf_chat_messages = []
         st.session_state.pdf_chat_visible = False
-        st.session_state.pdf_file_id = None
-        st.session_state.pdf_vector_store_id = None
         st.session_state.pdf_assistant_id = None
+        st.success("초기화 완료")
 
     # 📁 PDF 업로드
     uploaded_file = st.file_uploader("PDF 파일 업로드", type="pdf")
@@ -100,18 +103,20 @@ if "api_key" in st.session_state and st.session_state.api_key:
                     break
                 elif run_status.status == "failed":
                     st.error("실행 실패")
-                    break
+                    return
                 time.sleep(1)
 
+        # 응답 가져오기
         messages = openai.beta.threads.messages.list(thread_id=thread.id)
         for msg in reversed(messages.data):
-            if msg.role == "assistant":
+            if msg.role == "assistant" and msg.content:
                 try:
                     reply = msg.content[0].text.value
                     st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
                     break
                 except Exception as e:
                     st.error(f"응답 파싱 오류: {str(e)}")
+                    break
 
         st.session_state.pdf_chat_visible = True
 
