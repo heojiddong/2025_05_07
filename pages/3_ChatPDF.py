@@ -81,7 +81,8 @@ if "api_key" in st.session_state and st.session_state.api_key:
         openai.beta.threads.messages.create(
             thread_id=thread.id,
             role="user",
-            content=user_input
+            content=user_input,
+            file_ids=[st.session_state.pdf_file_id]  # ✅ file 연결 필수
         )
 
         run = openai.beta.threads.runs.create(
@@ -105,9 +106,12 @@ if "api_key" in st.session_state and st.session_state.api_key:
         messages = openai.beta.threads.messages.list(thread_id=thread.id)
         for msg in reversed(messages.data):
             if msg.role == "assistant":
-                reply = msg.content[0].text.value
-                st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
-                break
+                try:
+                    reply = msg.content[0].text.value
+                    st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
+                    break
+                except Exception as e:
+                    st.error(f"응답 파싱 오류: {str(e)}")
 
         st.session_state.pdf_chat_visible = True
 
