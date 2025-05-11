@@ -5,20 +5,9 @@ import time
 st.title("📄 ChatPDF - File Search 기반 PDF 챗봇")
 
 # 상태 초기화
-if "pdf_chat_messages" not in st.session_state:
-    st.session_state.pdf_chat_messages = []
-
-if "pdf_chat_visible" not in st.session_state:
-    st.session_state.pdf_chat_visible = False
-
-if "pdf_file_id" not in st.session_state:
-    st.session_state.pdf_file_id = None
-
-if "pdf_vector_store_id" not in st.session_state:
-    st.session_state.pdf_vector_store_id = None
-
-if "pdf_assistant_id" not in st.session_state:
-    st.session_state.pdf_assistant_id = None
+for key in ["pdf_chat_messages", "pdf_chat_visible", "pdf_file_id", "pdf_vector_store_id", "pdf_assistant_id"]:
+    if key not in st.session_state:
+        st.session_state[key] = None if "id" in key else []
 
 # ✅ API 키 필요
 if "api_key" in st.session_state and st.session_state.api_key:
@@ -29,32 +18,26 @@ if "api_key" in st.session_state and st.session_state.api_key:
         try:
             if st.session_state.pdf_file_id:
                 openai.files.delete(st.session_state.pdf_file_id)
-                st.session_state.pdf_file_id = None
-        except Exception as e:
-            st.warning(f"파일 삭제 실패: {str(e)}")
-        try:
             if st.session_state.pdf_vector_store_id:
                 openai.beta.vector_stores.delete(st.session_state.pdf_vector_store_id)
-                st.session_state.pdf_vector_store_id = None
+            st.success("모든 정보 초기화 완료")
         except Exception as e:
-            st.warning(f"벡터 스토어 삭제 실패: {str(e)}")
+            st.warning(f"초기화 실패: {str(e)}")
+
         st.session_state.pdf_chat_messages = []
         st.session_state.pdf_chat_visible = False
+        st.session_state.pdf_file_id = None
+        st.session_state.pdf_vector_store_id = None
         st.session_state.pdf_assistant_id = None
-        st.success("초기화 완료")
 
     # 📁 PDF 업로드
     uploaded_file = st.file_uploader("PDF 파일 업로드", type="pdf")
-
-    if uploaded_file is not None and st.session_state.pdf_file_id is None:
+    if uploaded_file and st.session_state.pdf_file_id is None:
         with st.spinner("PDF 업로드 중..."):
-            file = openai.files.create(
-                file=uploaded_file,
-                purpose="assistants"
-            )
+            file = openai.files.create(file=uploaded_file, purpose="assistants")
             st.session_state.pdf_file_id = file.id
 
-            # 벡터 스토어 생성 및 연결
+            # 벡터 스토어 생성 및 파일 업로드
             vector_store = openai.beta.vector_stores.create(name="PDF Vector Store")
             openai.beta.vector_stores.file_batches.upload_and_poll(
                 vector_store_id=vector_store.id,
@@ -72,11 +55,10 @@ if "api_key" in st.session_state and st.session_state.api_key:
             )
             st.session_state.pdf_assistant_id = assistant.id
 
-            st.success("PDF 분석 환경 설정 완료!")
+            st.success("PDF 분석 환경 완료!")
 
     # 💬 질문 입력
     user_input = st.chat_input("PDF 내용을 기반으로 질문해보세요.")
-
     if user_input and st.session_state.pdf_assistant_id:
         st.session_state.pdf_chat_messages.append({"role": "user", "content": user_input})
 
@@ -85,12 +67,12 @@ if "api_key" in st.session_state and st.session_state.api_key:
             thread_id=thread.id,
             role="user",
             content=user_input,
-            file_ids=[st.session_state.pdf_file_id]  # ✅ file 연결 필수
+            file_ids=[st.session_state.pdf_file_id]
         )
 
         run = openai.beta.threads.runs.create(
             thread_id=thread.id,
-            assistant_id=st.session_state.pdf_assistant_id,
+            assistant_id=st.session_state.pdf_assistant_id
         )
 
         with st.spinner("GPT가 PDF를 분석 중입니다..."):
@@ -106,7 +88,7 @@ if "api_key" in st.session_state and st.session_state.api_key:
                     return
                 time.sleep(1)
 
-        # 응답 가져오기
+        # 응답 출력
         messages = openai.beta.threads.messages.list(thread_id=thread.id)
         for msg in reversed(messages.data):
             if msg.role == "assistant" and msg.content:
@@ -115,12 +97,12 @@ if "api_key" in st.session_state and st.session_state.api_key:
                     st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
                     break
                 except Exception as e:
-                    st.error(f"응답 파싱 오류: {str(e)}")
+                    st.error(f"응답 파싱 실패: {str(e)}")
                     break
 
         st.session_state.pdf_chat_visible = True
 
-    # 💬 대화 내용 출력
+    # 💬 대화 출력
     if st.session_state.pdf_chat_visible:
         for msg in st.session_state.pdf_chat_messages:
             with st.chat_message(msg["role"]):
