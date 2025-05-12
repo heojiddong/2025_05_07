@@ -2,7 +2,7 @@ import streamlit as st
 import openai
 import time
 
-st.title("📄 ChatPDF - File Search 기반 PDF 챗봇")
+st.title("📄 ChatPDF - PDF 기반 챗봇")
 
 # 상태 초기화
 if "pdf_chat_messages" not in st.session_state:
@@ -35,14 +35,13 @@ if "api_key" in st.session_state and st.session_state.api_key:
         st.session_state.pdf_assistant_id = None
         st.success("초기화 완료")
 
-    # 📁 PDF 업로드
+    # 📁 PDF 업로드 및 어시스턴트 생성
     uploaded_file = st.file_uploader("PDF 파일 업로드", type="pdf")
     if uploaded_file and st.session_state.pdf_file_id is None:
         with st.spinner("PDF 업로드 중..."):
             file = openai.files.create(file=uploaded_file, purpose="assistants")
             st.session_state.pdf_file_id = file.id
 
-            # 어시스턴트 생성 (file_ids는 run 시점에 넘김)
             assistant = openai.beta.assistants.create(
                 name="PDF Chat Assistant",
                 instructions="You are a helpful assistant who only answers based on the uploaded PDF file.",
@@ -60,15 +59,20 @@ if "api_key" in st.session_state and st.session_state.api_key:
         # 새 쓰레드 생성
         thread = openai.beta.threads.create()
 
-        # 메시지 추가
+        # 메시지 생성 (attachments 사용 - 최신 API 방식)
         openai.beta.threads.messages.create(
             thread_id=thread.id,
             role="user",
             content=user_input,
-            file_ids=[st.session_state.pdf_file_id]  # 이제 메시지에 file_ids 연결
+            attachments=[
+                {
+                    "file_id": st.session_state.pdf_file_id,
+                    "tools": [{"type": "file_search"}]
+                }
+            ]
         )
 
-        # Run 실행
+        # Assistant 실행
         run = openai.beta.threads.runs.create(
             thread_id=thread.id,
             assistant_id=st.session_state.pdf_assistant_id,
@@ -87,7 +91,7 @@ if "api_key" in st.session_state and st.session_state.api_key:
                     break
                 time.sleep(1)
 
-        # 응답 출력
+        # 응답 가져오기
         messages = openai.beta.threads.messages.list(thread_id=thread.id)
         for msg in reversed(messages.data):
             if msg.role == "assistant" and msg.content:
