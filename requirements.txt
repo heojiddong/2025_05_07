@@ -1,3 +1,2 @@
 openai
 streamlit
-openai==1.14.3
