@@ -14,9 +14,6 @@ if "pdf_chat_visible" not in st.session_state:
 if "pdf_file_id" not in st.session_state:
     st.session_state.pdf_file_id = None
 
-if "pdf_vector_store_id" not in st.session_state:
-    st.session_state.pdf_vector_store_id = None
-
 if "pdf_assistant_id" not in st.session_state:
     st.session_state.pdf_assistant_id = None
 
@@ -33,38 +30,24 @@ if "api_key" in st.session_state and st.session_state.api_key:
         except Exception as e:
             st.warning(f"파일 삭제 실패: {str(e)}")
 
-        try:
-            if st.session_state.pdf_vector_store_id:
-                openai.beta.vector_stores.delete(st.session_state.pdf_vector_store_id)
-                st.session_state.pdf_vector_store_id = None
-        except Exception as e:
-            st.warning(f"벡터 스토어 삭제 실패: {str(e)}")
-
         st.session_state.pdf_chat_messages = []
         st.session_state.pdf_chat_visible = False
         st.session_state.pdf_assistant_id = None
         st.success("초기화 완료")
 
-    # 📁 PDF 업로드
+    # 📁 PDF 업로드 및 어시스턴트 생성
     uploaded_file = st.file_uploader("PDF 파일 업로드", type="pdf")
     if uploaded_file and st.session_state.pdf_file_id is None:
         with st.spinner("PDF 업로드 중..."):
             file = openai.files.create(file=uploaded_file, purpose="assistants")
             st.session_state.pdf_file_id = file.id
 
-            vector_store = openai.beta.vector_stores.create(name="PDF Vector Store")
-            openai.beta.vector_stores.file_batches.upload_and_poll(
-                vector_store_id=vector_store.id,
-                files=[file.id]
-            )
-            st.session_state.pdf_vector_store_id = vector_store.id
-
             assistant = openai.beta.assistants.create(
                 name="PDF Chat Assistant",
                 instructions="You are a helpful assistant who only answers based on the uploaded PDF.",
                 model="gpt-4-1106-preview",
                 tools=[{"type": "file_search"}],
-                tool_resources={"file_search": {"vector_store_ids": [vector_store.id]}},
+                file_ids=[file.id],  # ✅ file_ids로 직접 연결
             )
             st.session_state.pdf_assistant_id = assistant.id
 
