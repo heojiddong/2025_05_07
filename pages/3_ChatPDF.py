@@ -52,7 +52,9 @@ if "api_key" in st.session_state and st.session_state.api_key:
                 ]
             )
 
-            reply = response['choices'][0]['message']['content'].strip()  # 'choices[0]['message']['content']로 수정
+            # 응답에서 'choices' 필드를 사용하여 message 추출
+            reply = response['choices'][0]['message']['content'].strip()  # 수정된 부분
+
             st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
             st.session_state.pdf_chat_visible = True
         except Exception as e:
