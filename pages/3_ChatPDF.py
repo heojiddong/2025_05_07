@@ -22,18 +22,33 @@ if "api_key" in st.session_state and st.session_state.api_key:
     openai.api_key = st.session_state.api_key
 
     # 🧹 Clear 버튼
-    if st.button("🧹 Clear"):
-        try:
-            if st.session_state.pdf_file_id:
-                openai.files.delete(st.session_state.pdf_file_id)
-                st.session_state.pdf_file_id = None
-        except Exception as e:
-            st.warning(f"파일 삭제 실패: {str(e)}")
+if st.button("🧹 Clear"):
+    errors = []
 
-        st.session_state.pdf_chat_messages = []
-        st.session_state.pdf_chat_visible = False
+    # 파일 삭제
+    if st.session_state.pdf_file_id:
+        try:
+            openai.files.delete(st.session_state.pdf_file_id)
+        except Exception as e:
+            errors.append(f"파일 삭제 실패: {str(e)}")
+        st.session_state.pdf_file_id = None
+
+    # assistant 삭제 (선택적)
+    if st.session_state.pdf_assistant_id:
+        try:
+            openai.beta.assistants.delete(st.session_state.pdf_assistant_id)
+        except Exception as e:
+            errors.append(f"Assistant 삭제 실패: {str(e)}")
         st.session_state.pdf_assistant_id = None
-        st.success("초기화 완료")
+
+    # 메시지 초기화
+    st.session_state.pdf_chat_messages = []
+    st.session_state.pdf_chat_visible = False
+
+    if errors:
+        st.warning("초기화 중 일부 실패:\n" + "\n".join(errors))
+    else:
+        st.success("PDF, 어시스턴트, 채팅 초기화 완료")
 
     # 📁 PDF 업로드 및 어시스턴트 생성
     uploaded_file = st.file_uploader("PDF 파일 업로드", type="pdf")
