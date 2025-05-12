@@ -1,7 +1,6 @@
 import streamlit as st
 import openai
 import PyPDF2
-import time
 
 st.title("📄 ChatPDF - File Search 기반 PDF 챗봇")
 
