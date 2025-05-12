@@ -43,7 +43,7 @@ if "api_key" in st.session_state and st.session_state.api_key:
 
         try:
             # 최신 OpenAI API 방식으로 질문 처리
-            response = openai.chat.completions.create(  # 최신 API 방식으로 수정
+            response = openai.ChatCompletion.create(  # 최신 API 방식으로 수정
                 model="gpt-4",  # GPT-4 모델 사용
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
