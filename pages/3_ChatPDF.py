@@ -98,7 +98,7 @@ if "api_key" in st.session_state and st.session_state.api_key:
                     break
                 elif run_status.status == "failed":
                     st.error("실행 실패")
-                    return
+                    break
                 time.sleep(1)
 
         messages = openai.beta.threads.messages.list(thread_id=thread.id)
