@@ -50,15 +50,15 @@ if "api_key" in st.session_state and st.session_state.api_key:
         st.session_state.pdf_chat_messages.append({"role": "user", "content": user_input})
 
         try:
-            # OpenAI file search를 이용하여 PDF에 대한 질문 처리
-            response = openai.Completion.create(
+            # 최신 OpenAI API 방식으로 질문 처리
+            response = openai.ChatCompletion.create(
                 model="gpt-4",  # GPT-4 모델 사용
-                prompt=f"Answer the following question based on the uploaded PDF: {user_input}",
-                max_tokens=150,
-                documents=[st.session_state.pdf_file_id]
+                messages=[{"role": "system", "content": "You are a helpful assistant who answers based on the uploaded PDF."},
+                          {"role": "user", "content": user_input}],
+                documents=[st.session_state.pdf_file_id]  # PDF 파일로부터 정보 추출
             )
 
-            reply = response.choices[0].text.strip()
+            reply = response['choices'][0]['message']['content'].strip()
             st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
             st.session_state.pdf_chat_visible = True
         except Exception as e:
