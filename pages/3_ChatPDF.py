@@ -21,34 +21,34 @@ if "pdf_assistant_id" not in st.session_state:
 if "api_key" in st.session_state and st.session_state.api_key:
     openai.api_key = st.session_state.api_key
 
-    # 🧹 Clear 버튼
-if st.button("🧹 Clear"):
-    errors = []
+    # 🧹 Clear 버튼: 파일, 어시스턴트, 채팅 모두 삭제
+    if st.button("🧹 Clear"):
+        errors = []
 
-    # 파일 삭제
-    if st.session_state.pdf_file_id:
-        try:
-            openai.files.delete(st.session_state.pdf_file_id)
-        except Exception as e:
-            errors.append(f"파일 삭제 실패: {str(e)}")
-        st.session_state.pdf_file_id = None
+        # PDF 파일 삭제
+        if st.session_state.pdf_file_id:
+            try:
+                openai.files.delete(st.session_state.pdf_file_id)
+            except Exception as e:
+                errors.append(f"파일 삭제 실패: {str(e)}")
+            st.session_state.pdf_file_id = None
 
-    # assistant 삭제 (선택적)
-    if st.session_state.pdf_assistant_id:
-        try:
-            openai.beta.assistants.delete(st.session_state.pdf_assistant_id)
-        except Exception as e:
-            errors.append(f"Assistant 삭제 실패: {str(e)}")
-        st.session_state.pdf_assistant_id = None
+        # 어시스턴트 삭제
+        if st.session_state.pdf_assistant_id:
+            try:
+                openai.beta.assistants.delete(st.session_state.pdf_assistant_id)
+            except Exception as e:
+                errors.append(f"Assistant 삭제 실패: {str(e)}")
+            st.session_state.pdf_assistant_id = None
 
-    # 메시지 초기화
-    st.session_state.pdf_chat_messages = []
-    st.session_state.pdf_chat_visible = False
+        # 메시지 초기화
+        st.session_state.pdf_chat_messages = []
+        st.session_state.pdf_chat_visible = False
 
-    if errors:
-        st.warning("초기화 중 일부 실패:\n" + "\n".join(errors))
-    else:
-        st.success("PDF, 어시스턴트, 채팅 초기화 완료")
+        if errors:
+            st.warning("일부 항목 삭제 실패:\n" + "\n".join(errors))
+        else:
+            st.success("모든 정보 초기화 완료!")
 
     # 📁 PDF 업로드 및 어시스턴트 생성
     uploaded_file = st.file_uploader("PDF 파일 업로드", type="pdf")
@@ -74,7 +74,7 @@ if st.button("🧹 Clear"):
         # 새 쓰레드 생성
         thread = openai.beta.threads.create()
 
-        # 메시지 생성 (attachments 사용 - 최신 API 방식)
+        # 메시지 생성 (attachments 방식으로 PDF 연결)
         openai.beta.threads.messages.create(
             thread_id=thread.id,
             role="user",
