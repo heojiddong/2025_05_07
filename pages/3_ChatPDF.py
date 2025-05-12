@@ -44,17 +44,13 @@ if "api_key" in st.session_state and st.session_state.api_key:
 
         try:
             # 최신 OpenAI API 방식으로 질문 처리
-            response = openai.ChatCompletion.create(  # ChatCompletion.create()로 수정
+            response = openai.completions.create(  # 'completions' 엔드포인트 사용
                 model="gpt-4",  # GPT-4 모델 사용
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant who answers based on the uploaded PDF."},
-                    {"role": "user", "content": user_input},
-                    {"role": "assistant", "content": st.session_state.pdf_text}
-                ],
+                prompt=st.session_state.pdf_text + "\n\n" + user_input,
                 max_tokens=200
             )
 
-            reply = response['choices'][0]['message']['content'].strip()  # 'message'로 수정
+            reply = response['choices'][0]['text'].strip()  # 'choices[0]['text']'로 수정
             st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
             st.session_state.pdf_chat_visible = True
         except Exception as e:
