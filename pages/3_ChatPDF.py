@@ -43,14 +43,18 @@ if "api_key" in st.session_state and st.session_state.api_key:
         st.session_state.pdf_chat_messages.append({"role": "user", "content": user_input})
 
         try:
-            # 텍스트를 기반으로 GPT-4 모델을 사용해 질문에 대한 답변 생성
-            response = openai.Completion.create(
-                model="gpt-4",
-                prompt=f"다음은 PDF의 내용입니다:\n\n{st.session_state.pdf_text}\n\n{user_input}",
+            # 최신 OpenAI API 방식으로 질문 처리
+            response = openai.ChatCompletion.create(
+                model="gpt-4",  # GPT-4 모델 사용
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant who answers based on the uploaded PDF."},
+                    {"role": "user", "content": user_input},
+                    {"role": "assistant", "content": st.session_state.pdf_text}
+                ],
                 max_tokens=200
             )
 
-            reply = response.choices[0].text.strip()
+            reply = response['choices'][0]['message']['content'].strip()
             st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
             st.session_state.pdf_chat_visible = True
         except Exception as e:
