@@ -1,5 +1,6 @@
 import streamlit as st
 import openai
+import PyPDF2
 import time
 
 st.title("📄 ChatPDF - File Search 기반 PDF 챗봇")
@@ -11,54 +12,45 @@ if "pdf_chat_messages" not in st.session_state:
 if "pdf_chat_visible" not in st.session_state:
     st.session_state.pdf_chat_visible = False
 
-if "pdf_file_id" not in st.session_state:
-    st.session_state.pdf_file_id = None
-
-if "pdf_assistant_id" not in st.session_state:
-    st.session_state.pdf_assistant_id = None
-
 # ✅ API 키 필요
 if "api_key" in st.session_state and st.session_state.api_key:
     openai.api_key = st.session_state.api_key
 
     # 🧹 Clear 버튼
     if st.button("🧹 Clear"):
-        try:
-            if st.session_state.pdf_file_id:
-                openai.File.delete(st.session_state.pdf_file_id)
-                st.session_state.pdf_file_id = None
-        except Exception as e:
-            st.warning(f"파일 삭제 실패: {str(e)}")
-
         st.session_state.pdf_chat_messages = []
         st.session_state.pdf_chat_visible = False
-        st.session_state.pdf_assistant_id = None
         st.success("초기화 완료")
 
-    # 📁 PDF 업로드 및 Assistant 생성
+    # 📁 PDF 업로드 및 텍스트 추출
     uploaded_file = st.file_uploader("PDF 파일 업로드", type="pdf")
-    if uploaded_file and st.session_state.pdf_file_id is None:
-        with st.spinner("PDF 업로드 중..."):
-            file = openai.File.create(file=uploaded_file, purpose="answers")
-            st.session_state.pdf_file_id = file.id
+    if uploaded_file:
+        with st.spinner("PDF 분석 중..."):
+            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            pdf_text = ""
+            for page in pdf_reader.pages:
+                pdf_text += page.extract_text()
 
-            st.success("PDF 파일 업로드 완료!")
+            if not pdf_text:
+                st.error("PDF에서 텍스트를 추출할 수 없습니다. 파일을 확인해주세요.")
+            else:
+                st.session_state.pdf_text = pdf_text
+                st.success("PDF 분석 완료!")
 
     # 💬 질문 입력
     user_input = st.text_input("PDF 내용을 기반으로 질문해보세요.")
-    if user_input and st.session_state.pdf_file_id:
+    if user_input and 'pdf_text' in st.session_state:
         st.session_state.pdf_chat_messages.append({"role": "user", "content": user_input})
 
         try:
-            # 최신 OpenAI API 방식으로 질문 처리
-            response = openai.ChatCompletion.create(
-                model="gpt-4",  # GPT-4 모델 사용
-                messages=[{"role": "system", "content": "You are a helpful assistant who answers based on the uploaded PDF."},
-                          {"role": "user", "content": user_input}],
-                documents=[st.session_state.pdf_file_id]  # PDF 파일로부터 정보 추출
+            # 텍스트를 기반으로 GPT-4 모델을 사용해 질문에 대한 답변 생성
+            response = openai.Completion.create(
+                model="gpt-4",
+                prompt=f"다음은 PDF의 내용입니다:\n\n{st.session_state.pdf_text}\n\n{user_input}",
+                max_tokens=200
             )
 
-            reply = response['choices'][0]['message']['content'].strip()
+            reply = response.choices[0].text.strip()
             st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
             st.session_state.pdf_chat_visible = True
         except Exception as e:
