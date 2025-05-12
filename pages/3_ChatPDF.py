@@ -25,7 +25,7 @@ if "api_key" in st.session_state and st.session_state.api_key:
     if st.button("🧹 Clear"):
         try:
             if st.session_state.pdf_file_id:
-                openai.files.delete(st.session_state.pdf_file_id)
+                openai.File.delete(st.session_state.pdf_file_id)
                 st.session_state.pdf_file_id = None
         except Exception as e:
             st.warning(f"파일 삭제 실패: {str(e)}")
@@ -35,67 +35,34 @@ if "api_key" in st.session_state and st.session_state.api_key:
         st.session_state.pdf_assistant_id = None
         st.success("초기화 완료")
 
-    # 📁 PDF 업로드 및 어시스턴트 생성
+    # 📁 PDF 업로드 및 Assistant 생성
     uploaded_file = st.file_uploader("PDF 파일 업로드", type="pdf")
     if uploaded_file and st.session_state.pdf_file_id is None:
         with st.spinner("PDF 업로드 중..."):
-            file = openai.files.create(file=uploaded_file, purpose="assistants")
+            file = openai.File.create(file=uploaded_file, purpose="answers")
             st.session_state.pdf_file_id = file.id
 
-            assistant = openai.beta.assistants.create(
-                name="PDF Chat Assistant",
-                instructions="You are a helpful assistant who only answers based on the uploaded PDF.",
-                model="gpt-4-1106-preview",
-                tools=[{"type": "file_search"}],
-                file_ids=[file.id],  # ✅ file_ids로 직접 연결
-            )
-            st.session_state.pdf_assistant_id = assistant.id
-
-            st.success("PDF 분석 환경 설정 완료!")
+            st.success("PDF 파일 업로드 완료!")
 
     # 💬 질문 입력
-    user_input = st.chat_input("PDF 내용을 기반으로 질문해보세요.")
-    if user_input and st.session_state.pdf_assistant_id:
+    user_input = st.text_input("PDF 내용을 기반으로 질문해보세요.")
+    if user_input and st.session_state.pdf_file_id:
         st.session_state.pdf_chat_messages.append({"role": "user", "content": user_input})
 
-        thread = openai.beta.threads.create()
-        openai.beta.threads.messages.create(
-            thread_id=thread.id,
-            role="user",
-            content=user_input,
-            file_ids=[st.session_state.pdf_file_id]
-        )
+        try:
+            # OpenAI file search를 이용하여 PDF에 대한 질문 처리
+            response = openai.Completion.create(
+                model="gpt-4",  # GPT-4 모델 사용
+                prompt=f"Answer the following question based on the uploaded PDF: {user_input}",
+                max_tokens=150,
+                documents=[st.session_state.pdf_file_id]
+            )
 
-        run = openai.beta.threads.runs.create(
-            thread_id=thread.id,
-            assistant_id=st.session_state.pdf_assistant_id
-        )
-
-        with st.spinner("GPT가 PDF를 분석 중입니다..."):
-            while True:
-                run_status = openai.beta.threads.runs.retrieve(
-                    thread_id=thread.id,
-                    run_id=run.id
-                )
-                if run_status.status == "completed":
-                    break
-                elif run_status.status == "failed":
-                    st.error("실행 실패")
-                    break
-                time.sleep(1)
-
-        messages = openai.beta.threads.messages.list(thread_id=thread.id)
-        for msg in reversed(messages.data):
-            if msg.role == "assistant" and msg.content:
-                try:
-                    reply = msg.content[0].text.value
-                    st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
-                    break
-                except Exception as e:
-                    st.error(f"응답 파싱 실패: {str(e)}")
-                    break
-
-        st.session_state.pdf_chat_visible = True
+            reply = response.choices[0].text.strip()
+            st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
+            st.session_state.pdf_chat_visible = True
+        except Exception as e:
+            st.error(f"응답 실패: {str(e)}")
 
     # 💬 대화 출력
     if st.session_state.pdf_chat_visible:
