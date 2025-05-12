@@ -1,6 +1,6 @@
 import streamlit as st
 import openai
-import PyPDF2
+import time
 
 st.title("📄 ChatPDF - File Search 기반 PDF 챗봇")
 
@@ -11,56 +11,97 @@ if "pdf_chat_messages" not in st.session_state:
 if "pdf_chat_visible" not in st.session_state:
     st.session_state.pdf_chat_visible = False
 
+if "pdf_file_id" not in st.session_state:
+    st.session_state.pdf_file_id = None
+
+if "pdf_assistant_id" not in st.session_state:
+    st.session_state.pdf_assistant_id = None
+
 # ✅ API 키 필요
 if "api_key" in st.session_state and st.session_state.api_key:
     openai.api_key = st.session_state.api_key
 
     # 🧹 Clear 버튼
     if st.button("🧹 Clear"):
+        try:
+            if st.session_state.pdf_file_id:
+                openai.files.delete(st.session_state.pdf_file_id)
+                st.session_state.pdf_file_id = None
+        except Exception as e:
+            st.warning(f"파일 삭제 실패: {str(e)}")
+
         st.session_state.pdf_chat_messages = []
         st.session_state.pdf_chat_visible = False
+        st.session_state.pdf_assistant_id = None
         st.success("초기화 완료")
 
-    # 📁 PDF 업로드 및 텍스트 추출
+    # 📁 PDF 업로드
     uploaded_file = st.file_uploader("PDF 파일 업로드", type="pdf")
-    if uploaded_file:
-        with st.spinner("PDF 분석 중..."):
-            pdf_reader = PyPDF2.PdfReader(uploaded_file)
-            pdf_text = ""
-            for page in pdf_reader.pages:
-                pdf_text += page.extract_text()
+    if uploaded_file and st.session_state.pdf_file_id is None:
+        with st.spinner("PDF 업로드 중..."):
+            file = openai.files.create(file=uploaded_file, purpose="assistants")
+            st.session_state.pdf_file_id = file.id
 
-            if not pdf_text:
-                st.error("PDF에서 텍스트를 추출할 수 없습니다. 파일을 확인해주세요.")
-            else:
-                st.session_state.pdf_text = pdf_text
-                st.success("PDF 분석 완료!")
+            # 어시스턴트 생성 (file_ids는 run 시점에 넘김)
+            assistant = openai.beta.assistants.create(
+                name="PDF Chat Assistant",
+                instructions="You are a helpful assistant who only answers based on the uploaded PDF file.",
+                model="gpt-4-1106-preview",
+                tools=[{"type": "file_search"}],
+            )
+            st.session_state.pdf_assistant_id = assistant.id
+            st.success("PDF 분석 환경 설정 완료!")
 
     # 💬 질문 입력
-    user_input = st.text_input("PDF 내용을 기반으로 질문해보세요.")
-    if user_input and 'pdf_text' in st.session_state:
+    user_input = st.chat_input("PDF 내용을 기반으로 질문해보세요.")
+    if user_input and st.session_state.pdf_assistant_id and st.session_state.pdf_file_id:
         st.session_state.pdf_chat_messages.append({"role": "user", "content": user_input})
 
-        try:
-            # 최신 OpenAI API 방식으로 질문 처리
-            response = openai.ChatCompletion.create(  # 최신 API 방식으로 수정
-                model="gpt-4",  # GPT-4 모델 사용
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": user_input},
-                    {"role": "assistant", "content": st.session_state.pdf_text}
-                ]
-            )
+        # 새 쓰레드 생성
+        thread = openai.beta.threads.create()
 
-            # 응답에서 'choices' 필드를 사용하여 message 추출
-            reply = response['choices'][0]['message']['content'].strip()  # 수정된 부분
+        # 메시지 추가
+        openai.beta.threads.messages.create(
+            thread_id=thread.id,
+            role="user",
+            content=user_input,
+            file_ids=[st.session_state.pdf_file_id]  # 이제 메시지에 file_ids 연결
+        )
 
-            st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
-            st.session_state.pdf_chat_visible = True
-        except Exception as e:
-            st.error(f"응답 실패: {str(e)}")
+        # Run 실행
+        run = openai.beta.threads.runs.create(
+            thread_id=thread.id,
+            assistant_id=st.session_state.pdf_assistant_id,
+        )
 
-    # 💬 대화 출력
+        with st.spinner("GPT가 PDF를 분석 중입니다..."):
+            while True:
+                run_status = openai.beta.threads.runs.retrieve(
+                    thread_id=thread.id,
+                    run_id=run.id
+                )
+                if run_status.status == "completed":
+                    break
+                elif run_status.status == "failed":
+                    st.error("실행 실패")
+                    break
+                time.sleep(1)
+
+        # 응답 출력
+        messages = openai.beta.threads.messages.list(thread_id=thread.id)
+        for msg in reversed(messages.data):
+            if msg.role == "assistant" and msg.content:
+                try:
+                    reply = msg.content[0].text.value
+                    st.session_state.pdf_chat_messages.append({"role": "assistant", "content": reply})
+                    break
+                except Exception as e:
+                    st.error(f"응답 파싱 실패: {str(e)}")
+                    break
+
+        st.session_state.pdf_chat_visible = True
+
+    # 💬 채팅 출력
     if st.session_state.pdf_chat_visible:
         for msg in st.session_state.pdf_chat_messages:
             with st.chat_message(msg["role"]):
